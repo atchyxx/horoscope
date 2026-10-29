@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>占星ホロスコープ表</title>
+<script>
+  (() => {
+    const param = new URLSearchParams(window.location.search).get("scoutTheme");
+    const theme =
+      param || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", theme);
+  })();
+</script>
+<style>
+:root {
+  color-scheme: light;
+  --cp-bg: #f7f4ef;
+  --cp-bg-elevated: #fcfbf8;
+  --cp-surface: #ffffff;
+  --cp-surface-soft: #f5f5f5;
+  --cp-border: #dedede;
+  --cp-border-strong: #919191;
+  --cp-text: #242424;
+  --cp-text-muted: #5c5c5c;
+  --cp-text-soft: #6f6f6f;
+  --cp-accent: #b11f4b;
+  --cp-accent-hover: #9a1a41;
+  --cp-accent-soft: rgba(177, 31, 75, 0.08);
+  --cp-accent-fg: #ffffff;
+  --cp-success: #16a34a;
+  --cp-danger: #dc2626;
+  --cp-warning: #f59e0b;
+  --cp-link: #0078d4;
+  --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.12);
+  --cp-overlay: rgba(255, 255, 255, 0.8);
+  --cp-panel: rgba(255, 255, 255, 0.86);
+  --cp-panel-strong: rgba(255, 255, 255, 0.96);
+  --cp-sheen: rgba(255, 255, 255, 0.55);
+  --cp-highlight: rgba(177, 31, 75, 0.12);
+}
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --cp-bg: #3d3b3a;
+  --cp-bg-elevated: #343231;
+  --cp-surface: #292929;
+  --cp-surface-soft: #2e2e2e;
+  --cp-border: #474747;
+  --cp-border-strong: #5f5f5f;
+  --cp-text: #dedede;
+  --cp-text-muted: #919191;
+  --cp-text-soft: #b0b0b0;
+  --cp-accent: #fd8ea1;
+  --cp-accent-hover: #fb7b91;
+  --cp-accent-soft: rgba(253, 142, 161, 0.14);
+  --cp-accent-fg: #1a1a1a;
+  --cp-success: #4ade80;
+  --cp-danger: #f87171;
+  --cp-warning: #fbbf24;
+  --cp-link: #4da6ff;
+  --cp-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+  --cp-overlay: rgba(41, 41, 41, 0.88);
+  --cp-panel: rgba(41, 41, 41, 0.72);
+  --cp-panel-strong: rgba(41, 41, 41, 0.96);
+  --cp-sheen: rgba(255, 255, 255, 0.04);
+  --cp-highlight: rgba(253, 142, 161, 0.12);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--cp-bg);
+  color: var(--cp-text);
+  font-family: "Segoe UI", Aptos, Calibri, -apple-system, BlinkMacSystemFont, sans-serif;
+  line-height: 1.6;
+  padding: 24px 16px 48px;
+}
+.container { max-width: 880px; margin: 0 auto; }
+header { text-align: center; margin-bottom: 24px; }
+header h1 { font-size: 1.75rem; font-weight: 600; }
+header p { color: var(--cp-text-muted); font-size: 0.9rem; margin-top: 4px; }
+.card {
+  background: var(--cp-surface);
+  border: 1px solid var(--cp-border);
+  border-radius: 16px;
+  box-shadow: 0 0 2px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.14);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.card h2 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--cp-border);
+}
+.input-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+input[type="date"] {
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 8px 12px;
+  border: 1px solid var(--cp-border-strong);
+  border-radius: 0.625rem;
+  background: var(--cp-surface-soft);
+  color: var(--cp-text);
+}
+button {
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 9px 24px;
+  border: none;
+  border-radius: 0.625rem;
+  background: var(--cp-accent);
+  color: var(--cp-accent-fg);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+button:hover { background: var(--cp-accent-hover); }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.stat {
+  background: var(--cp-surface-soft);
+  border: 1px solid var(--cp-border);
+  border-radius: 0.625rem;
+  padding: 12px 16px;
+}
+.stat .label { font-size: 0.78rem; color: var(--cp-text-muted); }
+.stat .value { font-size: 1.2rem; font-weight: 600; margin-top: 2px; }
+.stat .sub { font-size: 0.82rem; color: var(--cp-text-soft); }
+table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--cp-border); }
+th { color: var(--cp-text-muted); font-weight: 600; font-size: 0.8rem; }
+tr:last-child td { border-bottom: none; }
+.luck-block { margin-bottom: 14px; }
+.luck-row { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+.advice { font-size: 0.85rem; color: var(--cp-text-soft); padding-left: 76px; line-height: 1.5; }
+.luck-row .cat { width: 64px; font-size: 0.88rem; font-weight: 600; flex-shrink: 0; }
+.stars { color: var(--cp-warning); font-size: 1.05rem; letter-spacing: 2px; white-space: nowrap; }
+.bar-wrap { flex: 1; height: 8px; background: var(--cp-surface-soft); border: 1px solid var(--cp-border); border-radius: 4px; overflow: hidden; }
+.bar { height: 100%; background: var(--cp-accent); border-radius: 4px; }
+.message {
+  background: var(--cp-accent-soft);
+  border: 1px solid var(--cp-border);
+  border-radius: 0.625rem;
+  padding: 12px 16px;
+  font-size: 0.92rem;
+}
+.moon-big { font-size: 2.4rem; line-height: 1; }
+.flex-center { display: flex; align-items: center; gap: 16px; }
+footer { text-align: center; color: var(--cp-text-muted); font-size: 0.78rem; margin-top: 8px; }
+.hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🔭 占星ホロスコープ表</h1>
+    <p>生年月日から太陽星座・月相・惑星の配置を算出し、今日の運勢を占います</p>
+  </header>
+
+  <div class="card">
+    <h2>生年月日の入力</h2>
+    <div class="input-row">
+      <input type="date" id="birthdate">
+      <button id="btn">占う</button>
+    </div>
+  </div>
+
+  <div id="result" class="hidden">
+    <div class="card">
+      <h2>あなたのホロスコープ</h2>
+      <div class="grid2">
+        <div class="stat">
+          <div class="label">太陽星座</div>
+          <div class="value" id="sunSign"></div>
+          <div class="sub" id="sunSignSub"></div>
+        </div>
+        <div class="stat">
+          <div class="label">生まれた日の月</div>
+          <div class="value flex-center"><span class="moon-big" id="birthMoonEmoji"></span><span id="birthMoonPhase"></span></div>
+          <div class="sub" id="birthMoonSub"></div>
+        </div>
+        <div class="stat">
+          <div class="label">エレメント（四元素）</div>
+          <div class="value" id="element"></div>
+          <div class="sub" id="elementSub"></div>
+        </div>
+        <div class="stat">
+          <div class="label">守護星</div>
+          <div class="value" id="ruler"></div>
+          <div class="sub" id="rulerSub"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>今日の空（<span id="todayStr"></span>）</h2>
+      <div class="flex-center" style="margin-bottom: 16px;">
+        <span class="moon-big" id="todayMoonEmoji"></span>
+        <div>
+          <div style="font-weight:600; font-size:1.1rem;" id="todayMoonPhase"></div>
+          <div class="stat-sub" style="color:var(--cp-text-soft); font-size:0.85rem;" id="todayMoonSub"></div>
+        </div>
+      </div>
+      <table>
+        <thead><tr><th>天体</th><th>位置する星座</th><th>黄経</th></tr></thead>
+        <tbody id="planetTable"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>今日の運勢（<span id="fortuneSign"></span>）</h2>
+      <div id="luckRows"></div>
+      <div class="message" id="message" style="margin-top:14px;"></div>
+    </div>
+  </div>
+
+  <footer>※ 惑星位置は簡易天文計算（平均要素＋主要摂動項）による近似値です。占星術の解釈は伝統的な西洋占星術に基づきます。</footer>
+</div>
+
+<script>
+"use strict";
+const DEG = Math.PI / 180;
+const SIGNS = ["牡羊座","牡牛座","双子座","蟹座","獅子座","乙女座","天秤座","蠍座","射手座","山羊座","水瓶座","魚座"];
+const SIGN_GLYPH = ["♈","♉","♊","♋","♌","♍","♎","♏","♐","♑","♒","♓"];
+const ELEMENTS = ["火","地","風","水"];
+const ELEMENT_SUB = {
+  "火": "情熱的で行動力にあふれるタイプ",
+  "地": "堅実で現実的、着実に積み上げるタイプ",
+  "風": "知的で社交的、情報と変化を楽しむタイプ",
+  "水": "感受性が豊かで共感力の高いタイプ"
+};
+const RULERS = ["火星","金星","水星","月","太陽","水星","金星","冥王星","木星","土星","天王星","海王星"];
+const RULER_SUB = {
+  "火星":"勇気とエネルギーの星","金星":"愛と美の星","水星":"知性とコミュニケーションの星",
+  "月":"感情と直感の星","太陽":"生命力と自己表現の星","冥王星":"変容と再生の星",
+  "木星":"拡大と幸運の星","土星":"試練と努力の星","天王星":"革新と自由の星","海王星":"夢と想像力の星"
+};
+const PHASES = [
+  { name: "新月", emoji: "🌑", sub: "月齢 0〜3.7 頃" },
+  { name: "三日月（上弦へ）", emoji: "🌒", sub: "月齢 3.7〜7.4 頃" },
+  { name: "上弦の月", emoji: "🌓", sub: "月齢 7.4〜11.1 頃" },
+  { name: "満月に近づく月", emoji: "🌔", sub: "月齢 11.1〜14.8 頃" },
+  { name: "満月", emoji: "🌕", sub: "月齢 14.8〜18.4 頃" },
+  { name: "欠けていく月", emoji: "🌖", sub: "月齢 18.4〜22.1 頃" },
+  { name: "下弦の月", emoji: "🌗", sub: "月齢 22.1〜25.8 頃" },
+  { name: "新月に近づく月", emoji: "🌘", sub: "月齢 25.8〜29.5 頃" }
+];
+const SYNODIC = 29.53058867;
+const NEW_MOON_EPOCH = Date.UTC(2000, 0, 6, 18, 14); // 2000-01-06 18:14 UTC 新月
+
+function rev(x) { return x - Math.floor(x / 360) * 360; }
+function sinD(x) { return Math.sin(x * DEG); }
+function cosD(x) { return Math.cos(x * DEG); }
+
+// 月齢
+function moonAge(date) {
+  const days = (date.getTime() - NEW_MOON_EPOCH) / 86400000;
+  return ((days % SYNODIC) + SYNODIC) % SYNODIC;
+}
+function phaseOf(date) {
+  const age = moonAge(date);
+  const idx = Math.min(7, Math.floor(age / (SYNODIC / 8)));
+  return { ...PHASES[idx], age };
+}
+
+// 2000 Jan 0.0 (JD 2451543.5) からの日数
+function dayNumber(date) {
+  return date.getTime() / 86400000 - 10956.0; // 2451543.5 - 2440587.5
+}
+
+// 離心近点角の反復解法
+function eccAnomaly(M, e) {
+  let E = M + (e * 180 / Math.PI) * sinD(M) * (1 + e * cosD(M));
+  for (let i = 0; i < 6; i++) {
+    E = E - (E - (e * 180 / Math.PI) * sinD(E) - M) / (1 - e * cosD(E));
+  }
+  return E;
+}
+
+// 軌道要素から日心黄道座標経度（惑星）、地心に変換
+function planetHelio(d, el) {
+  const N = el.N[0] + el.N[1] * d;
+  const i = el.i[0] + el.i[1] * d;
+  const w = el.w[0] + el.w[1] * d;
+  const a = el.a[0];
+  const e = el.e[0] + el.e[1] * d;
+  const M = rev(el.M[0] + el.M[1] * d);
+  const E = eccAnomaly(M, e);
+  const xv = a * (cosD(E) - e);
+  const yv = a * Math.sqrt(1 - e * e) * sinD(E);
+  const v = rev(Math.atan2(yv, xv) / DEG);
+  const r = Math.sqrt(xv * xv + yv * yv);
+  const xh = r * (cosD(N) * cosD(v + w) - sinD(N) * sinD(v + w) * cosD(i));
+  const yh = r * (sinD(N) * cosD(v + w) + cosD(N) * sinD(v + w) * cosD(i));
+  return { xh, yh, M, w, v, r, N };
+}
+
+const ELEMENTS_TABLE = {
+  mercury: { N:[48.3313,3.24587e-5], i:[7.0047,5.00e-8], w:[29.1241,1.01444e-5], a:[0.387098,0], e:[0.205635,5.59e-10], M:[168.6562,4.0923344368] },
+  venus:   { N:[76.6799,2.46590e-5], i:[3.3946,2.75e-8], w:[54.8910,1.38374e-5], a:[0.723330,0], e:[0.006773,-1.302e-9], M:[48.0052,1.6021302244] },
+  mars:    { N:[49.5574,2.11081e-5], i:[1.8497,-1.78e-8], w:[286.5016,2.92961e-5], a:[1.523688,0], e:[0.093405,2.516e-9], M:[18.6021,0.5240207766] },
+  jupiter: { N:[100.4542,2.76854e-5], i:[1.3030,-1.557e-7], w:[273.8777,1.64505e-5], a:[5.20256,0], e:[0.048498,4.469e-9], M:[19.8950,0.0830853001] },
+  saturn:  { N:[113.6634,2.38980e-5], i:[2.4886,-1.081e-7], w:[339.3939,2.97661e-5], a:[9.55475,0], e:[0.055546,-9.499e-9], M:[316.9670,0.0334442282] }
+};
+
+// 太陽の黄経（地心）と日心座標の基準
+function sunPos(d) {
+  const w = 282.9404 + 4.70935e-5 * d;
+  const e = 0.016709 - 1.151e-9 * d;
+  const M = rev(356.0470 + 0.9856002585 * d);
+  const E = eccAnomaly(M, e);
+  const xv = cosD(E) - e;
+  const yv = Math.sqrt(1 - e * e) * sinD(E);
+  const v = rev(Math.atan2(yv, xv) / DEG);
+  const r = Math.sqrt(xv * xv + yv * yv);
+  return { lon: rev(v + w), xs: r * cosD(v + w), ys: r * sinD(v + w), M, r };
+}
+
+// 月の黄経（主要摂動項つき）
+function moonLon(d, sun) {
+  const N = rev(125.1228 - 0.0529538083 * d);
+  const i = 5.1454;
+  const w = rev(318.0634 + 0.1643573223 * d);
+  const e = 0.054900;
+  const Mm = rev(115.3654 + 13.0649929509 * d);
+  const E = eccAnomaly(Mm, e);
+  const xv = cosD(E) - e;
+  const yv = Math.sqrt(1 - e * e) * sinD(E);
+  const v = rev(Math.atan2(yv, xv) / DEG);
+  const r = Math.sqrt(xv * xv + yv * yv);
+  const xh = r * (cosD(N) * cosD(v + w) - sinD(N) * sinD(v + w) * cosD(i));
+  const yh = r * (sinD(N) * cosD(v + w) + cosD(N) * sinD(v + w) * cosD(i));
+  let lon = rev(Math.atan2(yh, xh) / DEG);
+  const Ms = sun.M;
+  const Lm = rev(N + w + Mm);      // 月の平均黄経
+  const Dm = rev(Lm - sun.lon);    // 平均離角
+  const F = rev(Lm - N);
+  lon += -1.274 * sinD(Mm - 2 * Dm)
+       + 0.658 * sinD(2 * Dm)
+       - 0.186 * sinD(Ms)
+       - 0.059 * sinD(2 * Mm - 2 * Dm)
+       - 0.057 * sinD(Mm - 2 * Dm + Ms)
+       + 0.053 * sinD(Mm + 2 * Dm)
+       + 0.046 * sinD(2 * Dm - Ms)
+       + 0.041 * sinD(Mm - Ms)
+       - 0.035 * sinD(Dm)
+       - 0.031 * sinD(Mm + Ms)
+       - 0.015 * sinD(2 * F - 2 * Dm)
+       + 0.011 * sinD(Mm - 4 * Dm);
+  return rev(lon);
+}
+
+function geocentricLon(d, el, sun) {
+  const p = planetHelio(d, el);
+  const xg = p.xh + sun.xs;
+  const yg = p.yh + sun.ys;
+  return rev(Math.atan2(yg, xg) / DEG);
+}
+
+function signOf(lon) { return Math.floor(rev(lon) / 30) % 12; }
+function fmtLon(lon) {
+  const l = rev(lon);
+  const s = Math.floor(l / 30);
+  const deg = l - s * 30;
+  return `${SIGN_GLYPH[s]} ${SIGNS[s]} ${deg.toFixed(1)}°`;
+}
+
+// 運勢の決定的乱数（日付×星座×分野で固定）
+function hashRand(seedStr) {
+  let h = 2166136261;
+  for (let i = 0; i < seedStr.length; i++) {
+    h ^= seedStr.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  h = Math.imul(h ^ (h >>> 13), 0x5bd1e995);
+  h ^= h >>> 15;
+  return (h >>> 0) / 4294967296;
+}
+
+const CATEGORIES = ["恋愛運", "仕事運", "金運", "健康運"];
+const LUCKY_COLORS = ["赤","青","緑","黄","白","黒","ピンク","紫","オレンジ","水色","金","銀"];
+const LUCKY_ITEMS = ["星形のモチーフ","花の香り","ハンカチ","手帳","天然石","お気に入りの音楽","温かい飲み物","散歩","手紙","キャンドル","青空写真","新しい文房具"];
+const LUCKY_DIRS = ["北","北東","東","南東","南","南西","西","北西"];
+const LUCKY_TIMES = ["早朝（5〜7時）","午前（9〜11時）","昼（11〜13時）","午後（15〜17時）","夕方（17〜19時）","夜（21〜23時）"];
+
+// 分野別アドバイス（運気レベル low/mid/high × 複数バリエーション）
+const ADVICE = {
+  "恋愛運": {
+    high: [
+      "直感が冴える恋愛日和。気になる人には自分から連絡してみましょう。返信率が高い日です。",
+      "魅力が最大限に伝わる日。デートや告白には絶好のタイミング。笑顔を意識するとさらに吉。",
+      "パートナーとの絆が深まる日。普段言えない感謝の言葉を伝えると関係が一歩進みます。",
+      "出会い運が急上昇。いつもと違う場所（カフェ・書店など）に足を運ぶと良い縁があります。"
+    ],
+    mid: [
+      "恋愛は焦らず自然体で。相手の話を丁寧に聞く姿勢が好感度を上げます。",
+      "連絡のタイミングを計る日。長文より短く誠実なメッセージが効果的です。",
+      "自分磨きに投資すると後の恋愛運に直結。美容院や新しい洋服が吉。",
+      "友人からの紹介に縁あり。誘われた集まりには積極的に参加を。"
+    ],
+    low: [
+      "すれ違いが起きやすい日。重要な話は今日は避け、聞き役に回ると安全です。",
+      "恋愛より自分時間を優先して。趣味や休息で心を満たすと明日からの運気が上がります。",
+      "返信が遅くても悪い意味ではありません。相手を疑わず余裕を持ちましょう。",
+      "過去の恋を思い出しやすい日。思い出の品を整理すると心が軽くなります。"
+    ]
+  },
+  "仕事運": {
+    high: [
+      "企画・提案が通りやすい日。温めていたアイデアを今日発表しましょう。",
+      "上司や取引先からの評価が上がる日。成果は遠慮せずアピールして正解です。",
+      "集中力が高まっています。難しいタスクを午前中に片付けると一気に進みます。",
+      "新しいスキル学習の開始に最適。資格やセミナーの申し込みは今日決断を。"
+    ],
+    mid: [
+      "ルーティンを丁寧にこなす日。ミス防止のダブルチェックが評価につながります。",
+      "周囲との調整が鍵。独断より相談を重ねると結果的に早く進みます。",
+      "午後にひらめきあり。メモを手元に置いてアイデアを逃さないで。",
+      "デスク周りを片付けると仕事の流れが変わります。5分の整理整頓を。"
+    ],
+    low: [
+      "大きな決断や契約は今日は保留に。情報収集と準備に徹する日です。",
+      "疲れが判断力を鈍らせます。難しい仕事は明日に回し、事務作業中心で。",
+      "口論に注意。メールは送信前に一度読み返すとトラブルを防げます。",
+      "予定通りに進まなくても焦らないで。優先順位を1つに絞ると立て直せます。"
+    ]
+  },
+  "金運": {
+    high: [
+      "臨時収入や思わぬ得がありそう。懸賞・ポイントの確認をしてみましょう。",
+      "買い物運良好。前から欲しかったものは今日の購入が吉。値段交渉も可。",
+      "お金の勉強を始める好機。家計簿アプリや投資情報のチェックが開運行動。",
+      "人へのご馳走が巡って戻る日。後輩への一杯が良い縁を運びます。"
+    ],
+    mid: [
+      "堅実な収支を心がけて。固定費の見直し（サブスク等）に適した日です。",
+      "衝動買いは一晩置いて判断。カートに入れて明日再考すると無駄が減ります。",
+      "小銭の使い道に注意。コンビニでの無駄遣いを1回我慢するだけで運気安定。",
+      "財布の中を整理すると金運が整います。レシートは今日処分を。"
+    ],
+    low: [
+      "大きな買い物・投資は控えめに。今日は情報収集に留めるのが賢明です。",
+      "貸し借りはNG。頼まれても丁寧に断る勇気があなたを守ります。",
+      "忘れ物・落とし物に注意。貴重品はいつもと同じ場所に定位置管理を。",
+      "節約よりも「無駄を減らす」意識で。今日はコンビニ寄らずに帰りましょう。"
+    ]
+  },
+  "健康運": {
+    high: [
+      "体力気力ともに充実。新しい運動（散歩・ストレッチ）を始めるのに最適な日。",
+      "体の声が聞こえる日。旬の食べ物を取り入れると体調がさらに整います。",
+      "早寝早起きのリズム作りを今日から。3日続ければ習慣化します。",
+      "アクティブに動くと運気上昇。駅一つ分歩くだけでも効果あり。"
+    ],
+    mid: [
+      "無理せずマイペースで。こまめな水分補給を意識すると1日快調です。",
+      "肩や目の疲れに注意。1時間に1回のストレッチを今日の習慣に。",
+      "睡眠時間を15分増やすだけで明日のパフォーマンスが変わります。",
+      "野菜不足に気をつけて。一品追加するだけで体が軽くなります。"
+    ],
+    low: [
+      "疲労が溜まっています。今日は予定を詰め込まず、早めの帰宅を。",
+      "冷えに注意。温かい飲み物と湯船で体を芯から温めましょう。",
+      "頭痛やだるさのサインを見逃さないで。休むことも今日の大切な仕事です。",
+      "食べ過ぎ・飲み過ぎにブレーキを。腹八分目で胃腸を休める日に。"
+    ]
+  }
+};
+
+const COMPAT_MSG = {
+  same: "今日の月はあなたと同じ「{elem}」のエレメント。感覚が研ぎ澄まされ、物事がスムーズに進む追い風の日です。",
+  harmony: "今日の月はあなたと相性の良いエレメント。人間関係や直感に恵まれ、心地よく過ごせます。",
+  neutral: "今日の月はあなたにとって中立の位置。大きな波はなく、自分のペースを保てる安定した日です。",
+  tension: "今日の月はあなたと反対のエレメント。いつもと違う視点が得られる日。違和感は学びのチャンスです。"
+};
+// エレメント間の相性: 火↔風=好調、地↔水=好調、同じ=same、対立(火↔水, 地↔風)=tension
+function elementRelation(a, b) {
+  if (a === b) return "same";
+  const pair = [a, b].sort().join("");
+  if (pair === "火風" || pair === "地水") return "harmony";
+  if (pair === "火水" || pair === "地風") return "tension";
+  return "neutral";
+}
+const PHASE_MSG = {
+  0: "新月は始まりのとき。新しい目標を立てると願いが叶いやすい日です。",
+  1: "月が満ち始める時期。小さな一歩を踏み出すのに適しています。",
+  2: "上弦の月は行動と決断のとき。迷っていることに答えを出しましょう。",
+  3: "達成に向けて追い込みをかける好機。粘り強さが実を結びます。",
+  4: "満月は完成と感謝のとき。成果を振り返り、周囲へ感謝を伝えましょう。",
+  5: "手放しと整理の時期。不要なものを処分すると運気が整います。",
+  6: "下弦の月は内省のとき。無理をせず休息を取りましょう。",
+  7: "次の新月に備え心身を浄化する時期。瞑想や読書がおすすめです。"
+};
+
+function render(birth) {
+  const today = new Date();
+  document.getElementById("todayStr").textContent =
+    `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
+
+  // 太陽星座（誕生日）
+  const dBirth = dayNumber(birth);
+  const sunBirth = sunPos(dBirth);
+  const sIdx = signOf(sunBirth.lon);
+  const elem = ELEMENTS[sIdx % 4];
+  const ruler = RULERS[sIdx];
+  document.getElementById("sunSign").textContent = `${SIGN_GLYPH[sIdx]} ${SIGNS[sIdx]}`;
+  document.getElementById("sunSignSub").textContent = fmtLon(sunBirth.lon);
+  document.getElementById("element").textContent = `${elem}のエレメント`;
+  document.getElementById("elementSub").textContent = ELEMENT_SUB[elem];
+  document.getElementById("ruler").textContent = ruler;
+  document.getElementById("rulerSub").textContent = RULER_SUB[ruler];
+
+  // 誕生日の月
+  const bp = phaseOf(birth);
+  document.getElementById("birthMoonEmoji").textContent = bp.emoji;
+  document.getElementById("birthMoonPhase").textContent = bp.name;
+  document.getElementById("birthMoonSub").textContent = `月齢 ${bp.age.toFixed(1)}`;
+
+  // 今日の月
+  const tp = phaseOf(today);
+  document.getElementById("todayMoonEmoji").textContent = tp.emoji;
+  document.getElementById("todayMoonPhase").textContent = tp.name;
+  document.getElementById("todayMoonSub").textContent = `月齢 ${tp.age.toFixed(1)} ／ ${tp.sub}`;
+
+  // 惑星表
+  const dToday = dayNumber(today);
+  const sunToday = sunPos(dToday);
+  const rows = [];
+  rows.push(["☉ 太陽", sunToday.lon]);
+  rows.push(["☽ 月", moonLon(dToday, sunToday)]);
+  rows.push(["☿ 水星", geocentricLon(dToday, ELEMENTS_TABLE.mercury, sunToday)]);
+  rows.push(["♀ 金星", geocentricLon(dToday, ELEMENTS_TABLE.venus, sunToday)]);
+  rows.push(["♂ 火星", geocentricLon(dToday, ELEMENTS_TABLE.mars, sunToday)]);
+  rows.push(["♃ 木星", geocentricLon(dToday, ELEMENTS_TABLE.jupiter, sunToday)]);
+  rows.push(["♄ 土星", geocentricLon(dToday, ELEMENTS_TABLE.saturn, sunToday)]);
+  document.getElementById("planetTable").innerHTML = rows.map(([name, lon]) =>
+    `<tr><td>${name}</td><td>${SIGNS[signOf(lon)]}</td><td>${fmtLon(lon)}</td></tr>`
+  ).join("");
+
+  // 運勢
+  document.getElementById("fortuneSign").textContent = SIGNS[sIdx];
+  const dateKey = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
+
+  // 今日の月の星座とエレメント相性（運気ボーナスに反映）
+  const todayMoonLon = moonLon(dToday, sunToday);
+  const moonSignIdx = signOf(todayMoonLon);
+  const moonElem = ELEMENTS[moonSignIdx % 4];
+  const relation = elementRelation(elem, moonElem);
+  const bonus = relation === "same" ? 1 : relation === "harmony" ? 0.5 : relation === "tension" ? -0.5 : 0;
+
+  const container = document.getElementById("luckRows");
+  container.innerHTML = "";
+  const scores = {};
+  CATEGORIES.forEach((cat) => {
+    const score = Math.max(1, Math.min(5, Math.round(1 + hashRand(`${dateKey}:${sIdx}:${cat}`) * 4 + bonus)));
+    scores[cat] = score;
+    const stars = "★".repeat(score) + "☆".repeat(5 - score);
+    const level = score >= 4 ? "high" : score === 3 ? "mid" : "low";
+    const pool = ADVICE[cat][level];
+    const advice = pool[Math.floor(hashRand(`${dateKey}:${sIdx}:${cat}:adv`) * pool.length)];
+    const row = document.createElement("div");
+    row.className = "luck-block";
+    row.innerHTML = `<div class="luck-row"><span class="cat">${cat}</span><span class="stars">${stars}</span>
+      <div class="bar-wrap"><div class="bar" style="width:${score * 20}%"></div></div></div>
+      <div class="advice">${advice}</div>`;
+    container.appendChild(row);
+  });
+
+  // ラッキー要素
+  const luckyColor = LUCKY_COLORS[Math.floor(hashRand(`${dateKey}:${sIdx}:color`) * LUCKY_COLORS.length)];
+  const luckyItem = LUCKY_ITEMS[Math.floor(hashRand(`${dateKey}:${sIdx}:item`) * LUCKY_ITEMS.length)];
+  const luckyNum = 1 + Math.floor(hashRand(`${dateKey}:${sIdx}:num`) * 99);
+  const luckyDir = LUCKY_DIRS[Math.floor(hashRand(`${dateKey}:${sIdx}:dir`) * LUCKY_DIRS.length)];
+  const luckyTime = LUCKY_TIMES[Math.floor(hashRand(`${dateKey}:${sIdx}:time`) * LUCKY_TIMES.length)];
+
+  // 総合アドバイス（月相 × エレメント相性 × 最強/最弱分野）
+  const phaseMsg = PHASE_MSG[Math.min(7, Math.floor(tp.age / (SYNODIC / 8)))];
+  const compatMsg = COMPAT_MSG[relation].replace("{elem}", moonElem);
+  const best = CATEGORIES.reduce((a, b) => scores[a] >= scores[b] ? a : b);
+  const worst = CATEGORIES.reduce((a, b) => scores[a] <= scores[b] ? a : b);
+  document.getElementById("message").innerHTML =
+    `<div style="margin-bottom:8px;">🌙 <b>月相からの示唆</b>：${phaseMsg}</div>
+     <div style="margin-bottom:8px;">🪐 <b>今日の月（${SIGNS[moonSignIdx]}）との相性</b>：${compatMsg}</div>
+     <div style="margin-bottom:8px;">📌 <b>今日の過ごし方</b>：最も運気が高いのは<b>${best}</b>。ここに時間とエネルギーを優先的に使いましょう。一方、<b>${worst}</b>は低調気味なので、重要な判断は明日以降に回すと吉です。</div>
+     <div>🎨 ラッキーカラー：<b>${luckyColor}</b>　🍀 アイテム：<b>${luckyItem}</b>　🔢 ナンバー：<b>${luckyNum}</b>　🧭 方角：<b>${luckyDir}</b>　⏰ 時間帯：<b>${luckyTime}</b></div>`;
+
+  document.getElementById("result").classList.remove("hidden");
+}
+
+document.getElementById("btn").addEventListener("click", () => {
+  const v = document.getElementById("birthdate").value;
+  if (!v) { document.getElementById("birthdate").focus(); return; }
+  const [y, m, d] = v.split("-").map(Number);
+  render(new Date(Date.UTC(y, m - 1, d, 12)));
+});
+document.getElementById("birthdate").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") document.getElementById("btn").click();
+});
+</script>
+</body>
+</html>
