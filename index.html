@@ -93,7 +93,7 @@ header p { color: var(--cp-text-muted); font-size: 0.9rem; margin-top: 4px; }
   border-bottom: 1px solid var(--cp-border);
 }
 .input-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
-input[type="date"] {
+input[type="date"], select {
   font-family: inherit;
   font-size: 1rem;
   padding: 8px 12px;
@@ -102,6 +102,7 @@ input[type="date"] {
   background: var(--cp-surface-soft);
   color: var(--cp-text);
 }
+.fld { display: flex; flex-direction: column; gap: 4px; font-size: 0.82rem; color: var(--cp-text-muted); }
 button {
   font-family: inherit;
   font-size: 1rem;
@@ -153,13 +154,20 @@ footer { text-align: center; color: var(--cp-text-muted); font-size: 0.78rem; ma
 <div class="container">
   <header>
     <h1>🔭 占星ホロスコープ表</h1>
-    <p>生年月日から太陽星座・月相・惑星の配置を算出し、今日の運勢を占います</p>
+    <p>生年月日から太陽星座・月相・惑星の配置を算出し、選んだ日・週の運勢を占います</p>
   </header>
 
   <div class="card">
-    <h2>生年月日の入力</h2>
+    <h2>占いの条件</h2>
     <div class="input-row">
-      <input type="date" id="birthdate">
+      <label class="fld">生年月日 <input type="date" id="birthdate"></label>
+      <label class="fld">占う日 <input type="date" id="targetdate"></label>
+      <label class="fld">期間
+        <select id="mode">
+          <option value="day">1日</option>
+          <option value="week">1週間</option>
+        </select>
+      </label>
       <button id="btn">占う</button>
     </div>
   </div>
@@ -191,8 +199,8 @@ footer { text-align: center; color: var(--cp-text-muted); font-size: 0.78rem; ma
       </div>
     </div>
 
-    <div class="card">
-      <h2>今日の空（<span id="todayStr"></span>）</h2>
+    <div class="card" id="skyCard">
+      <h2>空の様子（<span id="todayStr"></span>）</h2>
       <div class="flex-center" style="margin-bottom: 16px;">
         <span class="moon-big" id="todayMoonEmoji"></span>
         <div>
@@ -206,10 +214,19 @@ footer { text-align: center; color: var(--cp-text-muted); font-size: 0.78rem; ma
       </table>
     </div>
 
-    <div class="card">
-      <h2>今日の運勢（<span id="fortuneSign"></span>）</h2>
+    <div class="card" id="dayCard">
+      <h2>運勢（<span id="fortuneSign"></span>）</h2>
       <div id="luckRows"></div>
       <div class="message" id="message" style="margin-top:14px;"></div>
+    </div>
+
+    <div class="card hidden" id="weekCard">
+      <h2>週間運勢（<span id="weekRange"></span>）</h2>
+      <table>
+        <thead><tr><th>日付</th><th>月相</th><th>総合</th><th>恋愛</th><th>仕事</th><th>金運</th><th>健康</th><th>ひとこと</th></tr></thead>
+        <tbody id="weekTable"></tbody>
+      </table>
+      <div class="message" id="weekMessage" style="margin-top:14px;"></div>
     </div>
   </div>
 
@@ -491,12 +508,34 @@ const PHASE_MSG = {
   7: "次の新月に備え心身を浄化する時期。瞑想や読書がおすすめです。"
 };
 
-function render(birth) {
-  const today = new Date();
-  document.getElementById("todayStr").textContent =
-    `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
+const WDAYS = ["日","月","火","水","木","金","土"];
+function dateLabel(dt) { return `${dt.getFullYear()}年${dt.getMonth() + 1}月${dt.getDate()}日`; }
+function dateKeyOf(dt) { return `${dt.getFullYear()}-${dt.getMonth() + 1}-${dt.getDate()}`; }
+function toUTCNoon(y, m, d) { return new Date(Date.UTC(y, m - 1, d, 12)); }
+function localNoon(dt) { return toUTCNoon(dt.getFullYear(), dt.getMonth() + 1, dt.getDate()); }
 
-  // 太陽星座（誕生日）
+// 指定日の運勢を一括計算
+function computeDay(target, sIdx) {
+  const elem = ELEMENTS[sIdx % 4];
+  const d = dayNumber(target);
+  const sun = sunPos(d);
+  const phase = phaseOf(target);
+  const mLon = moonLon(d, sun);
+  const moonSignIdx = signOf(mLon);
+  const moonElem = ELEMENTS[moonSignIdx % 4];
+  const relation = elementRelation(elem, moonElem);
+  const bonus = relation === "same" ? 1 : relation === "harmony" ? 0.5 : relation === "tension" ? -0.5 : 0;
+  const dateKey = dateKeyOf(target);
+  const scores = {};
+  CATEGORIES.forEach((cat) => {
+    scores[cat] = Math.max(1, Math.min(5, Math.round(1 + hashRand(`${dateKey}:${sIdx}:${cat}`) * 4 + bonus)));
+  });
+  const total = CATEGORIES.reduce((sum, c) => sum + scores[c], 0);
+  return { d, sun, phase, moonSignIdx, moonElem, relation, scores, total, dateKey };
+}
+
+function render(birth, target, mode) {
+  // プロフィール（誕生日由来）
   const dBirth = dayNumber(birth);
   const sunBirth = sunPos(dBirth);
   const sIdx = signOf(sunBirth.lon);
@@ -508,55 +547,48 @@ function render(birth) {
   document.getElementById("elementSub").textContent = ELEMENT_SUB[elem];
   document.getElementById("ruler").textContent = ruler;
   document.getElementById("rulerSub").textContent = RULER_SUB[ruler];
-
-  // 誕生日の月
   const bp = phaseOf(birth);
   document.getElementById("birthMoonEmoji").textContent = bp.emoji;
   document.getElementById("birthMoonPhase").textContent = bp.name;
   document.getElementById("birthMoonSub").textContent = `月齢 ${bp.age.toFixed(1)}`;
 
-  // 今日の月
-  const tp = phaseOf(today);
-  document.getElementById("todayMoonEmoji").textContent = tp.emoji;
-  document.getElementById("todayMoonPhase").textContent = tp.name;
-  document.getElementById("todayMoonSub").textContent = `月齢 ${tp.age.toFixed(1)} ／ ${tp.sub}`;
+  const isWeek = mode === "week";
+  document.getElementById("skyCard").classList.toggle("hidden", isWeek);
+  document.getElementById("dayCard").classList.toggle("hidden", isWeek);
+  document.getElementById("weekCard").classList.toggle("hidden", !isWeek);
+  document.getElementById("result").classList.remove("hidden");
+  if (isWeek) { renderWeek(target, sIdx); return; }
 
-  // 惑星表
-  const dToday = dayNumber(today);
-  const sunToday = sunPos(dToday);
-  const rows = [];
-  rows.push(["☉ 太陽", sunToday.lon]);
-  rows.push(["☽ 月", moonLon(dToday, sunToday)]);
-  rows.push(["☿ 水星", geocentricLon(dToday, ELEMENTS_TABLE.mercury, sunToday)]);
-  rows.push(["♀ 金星", geocentricLon(dToday, ELEMENTS_TABLE.venus, sunToday)]);
-  rows.push(["♂ 火星", geocentricLon(dToday, ELEMENTS_TABLE.mars, sunToday)]);
-  rows.push(["♃ 木星", geocentricLon(dToday, ELEMENTS_TABLE.jupiter, sunToday)]);
-  rows.push(["♄ 土星", geocentricLon(dToday, ELEMENTS_TABLE.saturn, sunToday)]);
+  // --- 1日モード ---
+  const day = computeDay(target, sIdx);
+  document.getElementById("todayStr").textContent = dateLabel(target);
+  document.getElementById("todayMoonEmoji").textContent = day.phase.emoji;
+  document.getElementById("todayMoonPhase").textContent = day.phase.name;
+  document.getElementById("todayMoonSub").textContent = `月齢 ${day.phase.age.toFixed(1)} ／ ${day.phase.sub}`;
+
+  const rows = [
+    ["☉ 太陽", day.sun.lon],
+    ["☽ 月", moonLon(day.d, day.sun)],
+    ["☿ 水星", geocentricLon(day.d, ELEMENTS_TABLE.mercury, day.sun)],
+    ["♀ 金星", geocentricLon(day.d, ELEMENTS_TABLE.venus, day.sun)],
+    ["♂ 火星", geocentricLon(day.d, ELEMENTS_TABLE.mars, day.sun)],
+    ["♃ 木星", geocentricLon(day.d, ELEMENTS_TABLE.jupiter, day.sun)],
+    ["♄ 土星", geocentricLon(day.d, ELEMENTS_TABLE.saturn, day.sun)]
+  ];
   document.getElementById("planetTable").innerHTML = rows.map(([name, lon]) =>
     `<tr><td>${name}</td><td>${SIGNS[signOf(lon)]}</td><td>${fmtLon(lon)}</td></tr>`
   ).join("");
 
   // 運勢
   document.getElementById("fortuneSign").textContent = SIGNS[sIdx];
-  const dateKey = `${today.getFullYear()}-${today.getMonth() + 1}-${today.getDate()}`;
-
-  // 今日の月の星座とエレメント相性（運気ボーナスに反映）
-  const todayMoonLon = moonLon(dToday, sunToday);
-  const moonSignIdx = signOf(todayMoonLon);
-  const moonElem = ELEMENTS[moonSignIdx % 4];
-  const relation = elementRelation(elem, moonElem);
-  const bonus = relation === "same" ? 1 : relation === "harmony" ? 0.5 : relation === "tension" ? -0.5 : 0;
-
   const container = document.getElementById("luckRows");
   container.innerHTML = "";
-  const scores = {};
   CATEGORIES.forEach((cat) => {
-    const score = Math.max(1, Math.min(5, Math.round(1 + hashRand(`${dateKey}:${sIdx}:${cat}`) * 4 + bonus)));
-    scores[cat] = score;
+    const score = day.scores[cat];
     const stars = "★".repeat(score) + "☆".repeat(5 - score);
     const level = score >= 4 ? "high" : score === 3 ? "mid" : "low";
     const pool = ADVICE[cat][level];
-    const advice = pool[Math.floor(hashRand(`${dateKey}:${sIdx}:${cat}:adv`) * pool.length)];
+    const advice = pool[Math.floor(hashRand(`${day.dateKey}:${sIdx}:${cat}:adv`) * pool.length)].replace(/今日/g, "この日");
     const row = document.createElement("div");
     row.className = "luck-block";
     row.innerHTML = `<div class="luck-row"><span class="cat">${cat}</span><span class="stars">${stars}</span>
@@ -565,36 +597,95 @@ function render(birth) {
     container.appendChild(row);
   });
 
-  // ラッキー要素
-  const luckyColor = LUCKY_COLORS[Math.floor(hashRand(`${dateKey}:${sIdx}:color`) * LUCKY_COLORS.length)];
-  const luckyItem = LUCKY_ITEMS[Math.floor(hashRand(`${dateKey}:${sIdx}:item`) * LUCKY_ITEMS.length)];
-  const luckyNum = 1 + Math.floor(hashRand(`${dateKey}:${sIdx}:num`) * 99);
-  const luckyDir = LUCKY_DIRS[Math.floor(hashRand(`${dateKey}:${sIdx}:dir`) * LUCKY_DIRS.length)];
-  const luckyTime = LUCKY_TIMES[Math.floor(hashRand(`${dateKey}:${sIdx}:time`) * LUCKY_TIMES.length)];
+  const luckyColor = LUCKY_COLORS[Math.floor(hashRand(`${day.dateKey}:${sIdx}:color`) * LUCKY_COLORS.length)];
+  const luckyItem = LUCKY_ITEMS[Math.floor(hashRand(`${day.dateKey}:${sIdx}:item`) * LUCKY_ITEMS.length)];
+  const luckyNum = 1 + Math.floor(hashRand(`${day.dateKey}:${sIdx}:num`) * 99);
+  const luckyDir = LUCKY_DIRS[Math.floor(hashRand(`${day.dateKey}:${sIdx}:dir`) * LUCKY_DIRS.length)];
+  const luckyTime = LUCKY_TIMES[Math.floor(hashRand(`${day.dateKey}:${sIdx}:time`) * LUCKY_TIMES.length)];
 
-  // 総合アドバイス（月相 × エレメント相性 × 最強/最弱分野）
-  const phaseMsg = PHASE_MSG[Math.min(7, Math.floor(tp.age / (SYNODIC / 8)))];
-  const compatMsg = COMPAT_MSG[relation].replace("{elem}", moonElem);
-  const best = CATEGORIES.reduce((a, b) => scores[a] >= scores[b] ? a : b);
-  const worst = CATEGORIES.reduce((a, b) => scores[a] <= scores[b] ? a : b);
+  const phaseMsg = PHASE_MSG[Math.min(7, Math.floor(day.phase.age / (SYNODIC / 8)))];
+  const compatMsg = COMPAT_MSG[day.relation].replace("{elem}", day.moonElem).replace(/今日/g, "この日");
+  const best = CATEGORIES.reduce((a, b) => day.scores[a] >= day.scores[b] ? a : b);
+  const worst = CATEGORIES.reduce((a, b) => day.scores[a] <= day.scores[b] ? a : b);
   document.getElementById("message").innerHTML =
     `<div style="margin-bottom:8px;">🌙 <b>月相からの示唆</b>：${phaseMsg}</div>
-     <div style="margin-bottom:8px;">🪐 <b>今日の月（${SIGNS[moonSignIdx]}）との相性</b>：${compatMsg}</div>
-     <div style="margin-bottom:8px;">📌 <b>今日の過ごし方</b>：最も運気が高いのは<b>${best}</b>。ここに時間とエネルギーを優先的に使いましょう。一方、<b>${worst}</b>は低調気味なので、重要な判断は明日以降に回すと吉です。</div>
+     <div style="margin-bottom:8px;">🪐 <b>この日の月（${SIGNS[day.moonSignIdx]}）との相性</b>：${compatMsg}</div>
+     <div style="margin-bottom:8px;">📌 <b>この日の過ごし方</b>：最も運気が高いのは<b>${best}</b>。ここに時間とエネルギーを優先的に使いましょう。一方、<b>${worst}</b>は低調気味なので、重要な判断は別の日に回すと吉です。</div>
      <div>🎨 ラッキーカラー：<b>${luckyColor}</b>　🍀 アイテム：<b>${luckyItem}</b>　🔢 ナンバー：<b>${luckyNum}</b>　🧭 方角：<b>${luckyDir}</b>　⏰ 時間帯：<b>${luckyTime}</b></div>`;
+}
 
-  document.getElementById("result").classList.remove("hidden");
+// --- 週間モード ---
+function renderWeek(start, sIdx) {
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const t = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+    days.push({ date: t, ...computeDay(localNoon(t), sIdx) });
+  }
+  const end = days[6].date;
+  document.getElementById("weekRange").textContent =
+    `${days[0].date.getMonth() + 1}/${days[0].date.getDate()} 〜 ${end.getMonth() + 1}/${end.getDate()}`;
+
+  let bestIdx = 0;
+  days.forEach((dy, i) => { if (dy.total > days[bestIdx].total) bestIdx = i; });
+
+  document.getElementById("weekTable").innerHTML = days.map((dy, i) => {
+    const dt = dy.date;
+    const overall = Math.round(dy.total / 4);
+    const stars = "★".repeat(overall) + "☆".repeat(5 - overall);
+    const bestCat = CATEGORIES.reduce((a, b) => dy.scores[a] >= dy.scores[b] ? a : b);
+    const comment = dy.total >= 17 ? `${bestCat.replace("運", "")}が絶好調`
+      : dy.total >= 14 ? `${bestCat}が好調`
+      : dy.total >= 11 ? "安定した一日"
+      : "休息を優先する日";
+    const hl = i === bestIdx ? ` style="background:var(--cp-highlight);"` : "";
+    const cells = CATEGORIES.map((c) => `<td>${dy.scores[c]}</td>`).join("");
+    return `<tr${hl}><td>${dt.getMonth() + 1}/${dt.getDate()}（${WDAYS[dt.getDay()]}）</td>
+      <td title="${dy.phase.name}">${dy.phase.emoji}</td>
+      <td><span class="stars" style="font-size:0.85rem;">${stars}</span></td>
+      ${cells}<td style="font-size:0.82rem;">${comment}</td></tr>`;
+  }).join("");
+
+  const bd = days[bestIdx];
+  const bdt = bd.date;
+  const bBest = CATEGORIES.reduce((a, b) => bd.scores[a] >= bd.scores[b] ? a : b);
+  const fullMoons = days.filter((dy) => dy.phase.age >= 14.0 && dy.phase.age <= 15.5);
+  const newMoons = days.filter((dy) => dy.phase.age <= 1.0 || dy.phase.age >= 28.5);
+  let phaseNote = "";
+  if (fullMoons.length) phaseNote = `🌕 ${fullMoons[0].date.getMonth() + 1}/${fullMoons[0].date.getDate()} 頃が満月。成果の確認や感謝の機会に。`;
+  else if (newMoons.length) phaseNote = `🌑 ${newMoons[0].date.getMonth() + 1}/${newMoons[0].date.getDate()} 頃が新月。新しいことを始めるのに最適です。`;
+  document.getElementById("weekMessage").innerHTML =
+    `<div style="margin-bottom:8px;">🏆 <b>今週のベストデー</b>：<b>${bdt.getMonth() + 1}/${bdt.getDate()}（${WDAYS[bdt.getDay()]}）</b>。特に<b>${bBest}</b>の運気が高い日です。大事な約束や勝負事はこの日に。</div>
+     ${phaseNote ? `<div>${phaseNote}</div>` : ""}`;
 }
 
 document.getElementById("btn").addEventListener("click", () => {
   const v = document.getElementById("birthdate").value;
   if (!v) { document.getElementById("birthdate").focus(); return; }
   const [y, m, d] = v.split("-").map(Number);
-  render(new Date(Date.UTC(y, m - 1, d, 12)));
+  const tv = document.getElementById("targetdate").value;
+  let target;
+  if (tv) {
+    const [ty, tm, td] = tv.split("-").map(Number);
+    target = new Date(ty, tm - 1, td);
+  } else {
+    const now = new Date();
+    target = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  }
+  const mode = document.getElementById("mode").value;
+  render(toUTCNoon(y, m, d), target, mode);
 });
-document.getElementById("birthdate").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") document.getElementById("btn").click();
+["birthdate", "targetdate"].forEach((id) => {
+  document.getElementById(id).addEventListener("keydown", (e) => {
+    if (e.key === "Enter") document.getElementById("btn").click();
+  });
 });
+// 占う日の初期値は今日
+(() => {
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  document.getElementById("targetdate").value =
+    `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+})();
 </script>
 </body>
 </html>
