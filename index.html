@@ -216,7 +216,9 @@ footer { text-align: center; color: var(--cp-text-muted); font-size: 0.78rem; ma
 
     <div class="card" id="dayCard">
       <h2>運勢（<span id="fortuneSign"></span>）</h2>
+      <div id="overall" style="margin-bottom:14px; font-size:1.05rem; font-weight:600;"></div>
       <div id="luckRows"></div>
+      <div id="aspects" style="margin-top:14px;"></div>
       <div class="message" id="message" style="margin-top:14px;"></div>
     </div>
 
@@ -529,6 +531,81 @@ const MARS_SIGN_ADVICE = [
   "火星は魚座に滞在中。直感に従う行動が吉。無理な競争より自分のペースを大切に。"
 ];
 
+// アスペクト（惑星間の角度関係）検出
+const ASPECTS = [
+  { name: "コンジャンクション（0°）", angle: 0, orb: 8, tone: "fusion" },
+  { name: "オポジション（180°）", angle: 180, orb: 8, tone: "aware" },
+  { name: "トライン（120°）", angle: 120, orb: 6, tone: "good" },
+  { name: "スクエア（90°）", angle: 90, orb: 6, tone: "hard" },
+  { name: "セクスタイル（60°）", angle: 60, orb: 4, tone: "chance" }
+];
+const PLANET_THEME = {
+  "太陽": "自己表現や活力",
+  "月": "感情や家庭",
+  "水星": "情報・通信・契約",
+  "金星": "恋愛・お金・美",
+  "火星": "行動・勝負事",
+  "木星": "拡大・成長・幸運",
+  "土星": "責任・基盤づくり"
+};
+const ASPECT_TEXT = {
+  fusion: "{P}が{N}と重なっています。{T}のテーマが強調される特別な日。新しい始まりや宣言に適しています。",
+  good: "{P}が{N}と調和（トライン）。{T}の分野に幸運の追い風。無理なく進んで結果がついてくる日です。",
+  chance: "{P}が{N}とセクスタイル。{T}に関するチャンスが転がっています。待つより自分から掴みにいく姿勢で。",
+  hard: "{P}が{N}とスクエア。{T}で葛藤や遅れが出やすい日。無理に押し通らず、調整・軌道修正に徹すると吉。",
+  aware: "{P}が{N}とオポジション。{T}を巡り対人の緊張や気づきが生まれます。相手の意見の中に学びがあります。"
+};
+function aspectDiff(a, b) { return Math.abs(rev(a - b + 180) - 180); }
+function findAspects(natalSun, natalMoon, transits) {
+  const hits = [];
+  transits.forEach(([name, lon]) => {
+    const dSun = aspectDiff(lon, natalSun);
+    ASPECTS.forEach((asp) => {
+      const dev = Math.abs(dSun - asp.angle);
+      if (dev <= asp.orb) hits.push({ name, asp, dev, natal: "太陽" });
+    });
+  });
+  // 月のリズム（トランジット月 × ネイタル月）
+  const moonT = transits.find(([n]) => n === "月");
+  if (moonT) {
+    const dMoon = aspectDiff(moonT[1], natalMoon);
+    ASPECTS.forEach((asp) => {
+      const dev = Math.abs(dMoon - asp.angle);
+      if (dev <= asp.orb) hits.push({ name: "月", asp, dev, natal: "月" });
+    });
+  }
+  hits.sort((a, b) => a.dev - b.dev);
+  return hits.slice(0, 3);
+}
+
+// 開運アクション（最も運気の高い分野 × エレメント）
+const ACTION = {
+  "恋愛運": {
+    "火": "思い立ったら即連絡。待ちの姿勢をやめて、あなたから場を作りましょう。",
+    "地": "相手の好きな食べ物を用意するなど、形のある気遣いが心を掴みます。",
+    "風": "面白い話題を一つ仕入れてから会いましょう。会話の数が距離を縮めます。",
+    "水": "相手の近況を思い出して労わりの一言を。共感の一言が何より効きます。"
+  },
+  "仕事運": {
+    "火": "朝イチに最も難しいタスクへ着手。勢いのある時間帯に勝負をかけて。",
+    "地": "今日やることを紙に3つ書き出し、順番に潰す堅実さが成果を呼びます。",
+    "風": "気になっていた人に情報交換を持ちかけて。思わぬ協力者が現れます。",
+    "水": "周囲の困りごとを先回りして解消。縁の下の働きが後で評価されます。"
+  },
+  "金運": {
+    "火": "欲しいものは価格比較より「今買うべきか」で即断。迷いが散財を招きます。",
+    "地": "口座と契約の棚卸しを。堅実な見直しが着実に資産を守ります。",
+    "風": "お金に関する情報を人から集める日。耳寄りな話はすぐメモを。",
+    "水": "使うより「誰かの役に立つ出費」を。巡って自分に返ってきます。"
+  },
+  "健康運": {
+    "火": "汗をかく運動でエネルギーを循環させて。20分の速歩がおすすめ。",
+    "地": "食事の内容を見直す日。添加物の少ない素朴な食事で体が整います。",
+    "風": "頭の疲れを深呼吸でリセット。5分の瞑想や窓を開けるだけで違います。",
+    "水": "湯船に浸かってリラックスを。入浴時間の確保が一番の健康法です。"
+  }
+};
+
 const COMPAT_MSG = {
   same: "今日の月はあなたと同じ「{elem}」のエレメント。感覚が研ぎ澄まされ、物事がスムーズに進む追い風の日です。",
   harmony: "今日の月はあなたと相性の良いエレメント。人間関係や直感に恵まれ、心地よく過ごせます。",
@@ -578,6 +655,7 @@ function computeDay(target, sIdx) {
   const moonElem = ELEMENTS[moonSignIdx % 4];
   const relation = elementRelation(elem, moonElem);
   const bonus = relation === "same" ? 1 : relation === "harmony" ? 0.5 : relation === "tension" ? -0.5 : 0;
+  const mercuryLon = geocentricLon(d, ELEMENTS_TABLE.mercury, sun);
   const venusLon = geocentricLon(d, ELEMENTS_TABLE.venus, sun);
   const marsLon = geocentricLon(d, ELEMENTS_TABLE.mars, sun);
   const retro = {
@@ -593,7 +671,7 @@ function computeDay(target, sIdx) {
     scores[cat] = Math.max(1, Math.min(5, Math.round(1 + hashRand(`${dateKey}:${sIdx}:${cat}`) * 4 + bonus)));
   });
   const total = CATEGORIES.reduce((sum, c) => sum + scores[c], 0);
-  return { d, sun, phase, moonSignIdx, moonElem, relation, scores, total, dateKey, venusLon, marsLon, retro };
+  return { d, sun, phase, moonSignIdx, moonElem, relation, scores, total, dateKey, mercuryLon, venusLon, marsLon, retro };
 }
 
 function render(birth, target, mode) {
@@ -644,6 +722,9 @@ function render(birth, target, mode) {
 
   // 運勢
   document.getElementById("fortuneSign").textContent = SIGNS[sIdx];
+  const overallScore = Math.round(day.total / 4);
+  document.getElementById("overall").textContent =
+    `総合運：${"★".repeat(overallScore)}${"☆".repeat(5 - overallScore)}`;
   const container = document.getElementById("luckRows");
   container.innerHTML = "";
   CATEGORIES.forEach((cat) => {
@@ -671,6 +752,33 @@ function render(birth, target, mode) {
   const best = CATEGORIES.reduce((a, b) => day.scores[a] >= day.scores[b] ? a : b);
   const worst = CATEGORIES.reduce((a, b) => day.scores[a] <= day.scores[b] ? a : b);
 
+  // アスペクト（出生図の太陽・月 × 現在の惑星）
+  const natalMoonLon = moonLon(dBirth, sunBirth);
+  const transitPlanets = [
+    ["太陽", day.sun.lon],
+    ["月", moonLon(day.d, day.sun)],
+    ["水星", day.mercuryLon],
+    ["金星", day.venusLon],
+    ["火星", day.marsLon],
+    ["木星", geocentricLon(day.d, ELEMENTS_TABLE.jupiter, day.sun)],
+    ["土星", geocentricLon(day.d, ELEMENTS_TABLE.saturn, day.sun)]
+  ];
+  const aspects = findAspects(sunBirth.lon, natalMoonLon, transitPlanets);
+  const aspectsEl = document.getElementById("aspects");
+  if (aspects.length) {
+    aspectsEl.innerHTML =
+      `<div style="font-weight:600; margin-bottom:6px;">🕸️ この日形成されるアスペクト</div>` +
+      aspects.map((h) =>
+        `<div class="advice" style="padding-left:0;">・${ASPECT_TEXT[h.asp.tone]
+          .replace("{P}", h.name)
+          .replace("{N}", `あなたの生まれ持った${h.natal}`)
+          .replace("{T}", PLANET_THEME[h.name])}</div>`
+      ).join("");
+  } else {
+    aspectsEl.innerHTML = `<div class="advice" style="padding-left:0;">🕸️ この日は強いアスペクトがありません。平穏に自分のペースで過ごせます。</div>`;
+  }
+  const actionAdvice = ACTION[best][elem];
+
   // 星の動きからのアドバイス（月の星座・金星・火星・逆行）
   const motionLines = [
     `🌙 ${MOON_SIGN_ADVICE[day.moonSignIdx]}`,
@@ -692,6 +800,7 @@ function render(birth, target, mode) {
     `<div style="margin-bottom:8px;">🌙 <b>月相からの示唆</b>：${phaseMsg}</div>
      <div style="margin-bottom:8px;">🪐 <b>この日の月（${SIGNS[day.moonSignIdx]}）との相性</b>：${compatMsg}</div>
      <div style="margin-bottom:8px;">📌 <b>この日の過ごし方</b>：最も運気が高いのは<b>${best}</b>。ここに時間とエネルギーを優先的に使いましょう。一方、<b>${worst}</b>は低調気味なので、重要な判断は別の日に回すと吉です。</div>
+     <div style="margin-bottom:8px;">✨ <b>開運アクション（${best.replace("運", "")} × ${elem}のエレメント）</b>：${actionAdvice}</div>
      <div style="margin-bottom:8px; padding:10px 12px; background:var(--cp-surface-soft); border:1px solid var(--cp-border); border-radius:0.625rem;">🌟 <b>星の動きからのアドバイス</b><div style="margin-top:6px;">${motionHtml}</div></div>
      <div>🎨 ラッキーカラー：<b>${luckyColor}</b>　🍀 アイテム：<b>${luckyItem}</b>　🔢 ナンバー：<b>${luckyNum}</b>　🧭 方角：<b>${luckyDir}</b>　⏰ 時間帯：<b>${luckyTime}</b></div>`;
 }
