@@ -223,7 +223,7 @@ footer { text-align: center; color: var(--cp-text-muted); font-size: 0.78rem; ma
     <div class="card hidden" id="weekCard">
       <h2>週間運勢（<span id="weekRange"></span>）</h2>
       <table>
-        <thead><tr><th>日付</th><th>月相</th><th>総合</th><th>恋愛</th><th>仕事</th><th>金運</th><th>健康</th><th>ひとこと</th></tr></thead>
+        <thead><tr><th>日付</th><th>月相</th><th>月の星座</th><th>総合</th><th>恋愛</th><th>仕事</th><th>金運</th><th>健康</th><th>ひとこと</th></tr></thead>
         <tbody id="weekTable"></tbody>
       </table>
       <div class="message" id="weekMessage" style="margin-top:14px;"></div>
@@ -483,6 +483,52 @@ const ADVICE = {
   }
 };
 
+// 月が各星座を運行するときのアドバイス
+const MOON_SIGN_ADVICE = [
+  "月は牡羊座を運行中。気持ちが前のめりになりやすいとき。衝動的な決定は避け、スポーツや短時間の集中作業でエネルギーを発散させると吉。",
+  "月は牡牛座を運行中。五感が敏感になるとき。美味しい食事や心地よい音楽で自分を労わると運気が整います。金銭の見直しにも好適。",
+  "月は双子座を運行中。好奇心が高まり情報が集まりやすい日。人との雑談から有益なヒントが得られます。同時進行はほどほどに。",
+  "月は蟹座を運行中。家族や身近な人との絆がテーマ。家でゆっくり過ごす、実家に連絡するなど、心の拠り所を大切にすると吉。",
+  "月は獅子座を運行中。自己表現が輝くとき。創作や発表、趣味を思い切り楽しむと評価につながります。見栄の張りすぎには注意。",
+  "月は乙女座を運行中。整理整頓や健康管理に適した日。細かい作業がはかどります。完璧を求めすぎて自分を責めないように。",
+  "月は天秤座を運行中。対人関係が円滑になるとき。交渉ごとやパートナーとの話し合いに好適。美しいものに触れると感性が磨かれます。",
+  "月は蠍座を運行中。集中力と洞察力が増す日。一つのことに深く取り組むと成果が出ます。秘密の共有には慎重に。",
+  "月は射手座を運行中。視野を広げたくなるとき。旅行計画や学びの開始に良い日。大きな目標について語り合うと運気上昇。",
+  "月は山羊座を運行中。仕事や責任ある役割に向き合う日。着実な努力が認められます。肩に力が入りすぎたら深呼吸を。",
+  "月は水瓶座を運行中。常識にとらわれない発想が生まれる日。友人やコミュニティとの交流が吉。変わったアイデアほどメモを。",
+  "月は魚座を運行中。感受性が高まり芸術や映画鑑賞に最適。人の気持ちに共感しすぎて疲れたら、一人の静かな時間を取りましょう。"
+];
+// 金星の星座による恋愛・美の傾向
+const VENUS_SIGN_ADVICE = [
+  "金星は牡羊座に滞在中。恋は積極的なアプローチが功を奏します。ファッションははっきりした色が吉。",
+  "金星は牡牛座に滞在中。恋愛は安定志向が吉。素材にこだわった買い物や食への投資が満足度を高めます。",
+  "金星は双子座に滞在中。会話の弾む出会いに縁あり。軽やかな付き合いから恋が育つ時期です。",
+  "金星は蟹座に滞在中。家庭的な温かさが愛を育みます。手料理やおうちデートが関係を深めます。",
+  "金星は獅子座に滞在中。華やかさが魅力を引き立てます。恋はドラマチックな演出が効果的。",
+  "金星は乙女座に滞在中。さりげない気配りが好感度アップの鍵。実用的なプレゼントが喜ばれます。",
+  "金星は天秤座に滞在中。恋愛運の追い風期。バランスの取れた関係づくりと美的センスが冴えます。",
+  "金星は蠍座に滞在中。深い絆を求める恋愛に。信頼関係を築くほど愛が深まる時期です。",
+  "金星は射手座に滞在中。恋は自由な空気の中で発展。一緒に新しい体験をすると距離が縮まります。",
+  "金星は山羊座に滞在中。誠実さと責任感が愛される鍵。将来を見据えた話し合いに良い時期。",
+  "金星は水瓶座に滞在中。友達のような心地よい関係が吉。個性を活かす装いが魅力になります。",
+  "金星は魚座に滞在中。ロマンチックなムードに包まれる時期。芸術鑑賞のデートが心を近づけます。"
+];
+// 火星の星座による行動・エネルギーの傾向
+const MARS_SIGN_ADVICE = [
+  "火星は牡羊座に滞在中。行動力が最高潮。思いついたら即実行で成果が出やすい時期です。",
+  "火星は牡牛座に滞在中。持久力が武器に。コツコツ型の作業を進めるのに適しています。",
+  "火星は双子座に滞在中。頭の回転が速まるとき。情報収集と並行作業がはかどります。",
+  "火星は蟹座に滞在中。大切な人を守るための行動に力が湧きます。家庭の課題に着手を。",
+  "火星は獅子座に滞在中。リーダーシップを発揮する好機。表舞台に立つほど力が出ます。",
+  "火星は乙女座に滞在中。精密な作業力が高まる日々。改善活動や分析に力を注ぐと吉。",
+  "火星は天秤座に滞在中。チームワークで成果を出す時期。単独行動より協調を意識して。",
+  "火星は蠍座に滞在中。一点集中の爆発力あり。困難な課題ほど燃える時期です。",
+  "火星は射手座に滞在中。冒険心が湧くとき。新分野への挑戦や遠出に良い運気です。",
+  "火星は山羊座に滞在中。目標達成への持続力が増す時期。計画的な実行が実を結びます。",
+  "火星は水瓶座に滞在中。革新的な行動が評価されるとき。既成概念を破る一手が有効。",
+  "火星は魚座に滞在中。直感に従う行動が吉。無理な競争より自分のペースを大切に。"
+];
+
 const COMPAT_MSG = {
   same: "今日の月はあなたと同じ「{elem}」のエレメント。感覚が研ぎ澄まされ、物事がスムーズに進む追い風の日です。",
   harmony: "今日の月はあなたと相性の良いエレメント。人間関係や直感に恵まれ、心地よく過ごせます。",
@@ -514,6 +560,13 @@ function dateKeyOf(dt) { return `${dt.getFullYear()}-${dt.getMonth() + 1}-${dt.g
 function toUTCNoon(y, m, d) { return new Date(Date.UTC(y, m - 1, d, 12)); }
 function localNoon(dt) { return toUTCNoon(dt.getFullYear(), dt.getMonth() + 1, dt.getDate()); }
 
+// 逆行判定（地心黄経が1日で減少していれば逆行）
+function isRetrograde(el, d) {
+  const a = geocentricLon(d, el, sunPos(d));
+  const b = geocentricLon(d + 1, el, sunPos(d + 1));
+  return rev(b - a) > 180;
+}
+
 // 指定日の運勢を一括計算
 function computeDay(target, sIdx) {
   const elem = ELEMENTS[sIdx % 4];
@@ -525,13 +578,22 @@ function computeDay(target, sIdx) {
   const moonElem = ELEMENTS[moonSignIdx % 4];
   const relation = elementRelation(elem, moonElem);
   const bonus = relation === "same" ? 1 : relation === "harmony" ? 0.5 : relation === "tension" ? -0.5 : 0;
+  const venusLon = geocentricLon(d, ELEMENTS_TABLE.venus, sun);
+  const marsLon = geocentricLon(d, ELEMENTS_TABLE.mars, sun);
+  const retro = {
+    mercury: isRetrograde(ELEMENTS_TABLE.mercury, d),
+    venus: isRetrograde(ELEMENTS_TABLE.venus, d),
+    mars: isRetrograde(ELEMENTS_TABLE.mars, d),
+    jupiter: isRetrograde(ELEMENTS_TABLE.jupiter, d),
+    saturn: isRetrograde(ELEMENTS_TABLE.saturn, d)
+  };
   const dateKey = dateKeyOf(target);
   const scores = {};
   CATEGORIES.forEach((cat) => {
     scores[cat] = Math.max(1, Math.min(5, Math.round(1 + hashRand(`${dateKey}:${sIdx}:${cat}`) * 4 + bonus)));
   });
   const total = CATEGORIES.reduce((sum, c) => sum + scores[c], 0);
-  return { d, sun, phase, moonSignIdx, moonElem, relation, scores, total, dateKey };
+  return { d, sun, phase, moonSignIdx, moonElem, relation, scores, total, dateKey, venusLon, marsLon, retro };
 }
 
 function render(birth, target, mode) {
@@ -566,14 +628,15 @@ function render(birth, target, mode) {
   document.getElementById("todayMoonPhase").textContent = day.phase.name;
   document.getElementById("todayMoonSub").textContent = `月齢 ${day.phase.age.toFixed(1)} ／ ${day.phase.sub}`;
 
+  const R = (flag) => flag ? "（逆行中）" : "";
   const rows = [
     ["☉ 太陽", day.sun.lon],
     ["☽ 月", moonLon(day.d, day.sun)],
-    ["☿ 水星", geocentricLon(day.d, ELEMENTS_TABLE.mercury, day.sun)],
-    ["♀ 金星", geocentricLon(day.d, ELEMENTS_TABLE.venus, day.sun)],
-    ["♂ 火星", geocentricLon(day.d, ELEMENTS_TABLE.mars, day.sun)],
-    ["♃ 木星", geocentricLon(day.d, ELEMENTS_TABLE.jupiter, day.sun)],
-    ["♄ 土星", geocentricLon(day.d, ELEMENTS_TABLE.saturn, day.sun)]
+    [`☿ 水星${R(day.retro.mercury)}`, geocentricLon(day.d, ELEMENTS_TABLE.mercury, day.sun)],
+    [`♀ 金星${R(day.retro.venus)}`, day.venusLon],
+    [`♂ 火星${R(day.retro.mars)}`, day.marsLon],
+    [`♃ 木星${R(day.retro.jupiter)}`, geocentricLon(day.d, ELEMENTS_TABLE.jupiter, day.sun)],
+    [`♄ 土星${R(day.retro.saturn)}`, geocentricLon(day.d, ELEMENTS_TABLE.saturn, day.sun)]
   ];
   document.getElementById("planetTable").innerHTML = rows.map(([name, lon]) =>
     `<tr><td>${name}</td><td>${SIGNS[signOf(lon)]}</td><td>${fmtLon(lon)}</td></tr>`
@@ -607,10 +670,29 @@ function render(birth, target, mode) {
   const compatMsg = COMPAT_MSG[day.relation].replace("{elem}", day.moonElem).replace(/今日/g, "この日");
   const best = CATEGORIES.reduce((a, b) => day.scores[a] >= day.scores[b] ? a : b);
   const worst = CATEGORIES.reduce((a, b) => day.scores[a] <= day.scores[b] ? a : b);
+
+  // 星の動きからのアドバイス（月の星座・金星・火星・逆行）
+  const motionLines = [
+    `🌙 ${MOON_SIGN_ADVICE[day.moonSignIdx]}`,
+    `💖 ${VENUS_SIGN_ADVICE[signOf(day.venusLon)]}`,
+    `🔥 ${MARS_SIGN_ADVICE[signOf(day.marsLon)]}`
+  ];
+  const retroNotes = [];
+  if (day.retro.mercury) retroNotes.push("水星が逆行中。連絡ミスや予定の変更に注意。契約や重要な送信は内容を再確認し、過去の案件の見直しには好機です。");
+  if (day.retro.venus) retroNotes.push("金星が逆行中。恋愛や買い物は衝動を抑えて。昔の友人・恋人との再会や、趣味の再開には良い時期です。");
+  if (day.retro.mars) retroNotes.push("火星が逆行中。エネルギーの空回りに注意。新規の勝負ごとより、中断していた計画の立て直しに力を注ぎましょう。");
+  if (day.retro.jupiter) retroNotes.push("木星が逆行中。拡大より内部の充実を。自分の価値観や目標を見直すのに適した時期です。");
+  if (day.retro.saturn) retroNotes.push("土星が逆行中。課題の再確認期間。放置していた問題に向き合うと、後の大きな安定につながります。");
+  const motionHtml = motionLines.map((l) => `<div style="margin-bottom:6px;">${l}</div>`).join("")
+    + (retroNotes.length
+      ? `<div style="margin-top:8px; padding-top:8px; border-top:1px solid var(--cp-border);">⏪ <b>逆行アラート</b>：${retroNotes.join(" ")}</div>`
+      : "");
+
   document.getElementById("message").innerHTML =
     `<div style="margin-bottom:8px;">🌙 <b>月相からの示唆</b>：${phaseMsg}</div>
      <div style="margin-bottom:8px;">🪐 <b>この日の月（${SIGNS[day.moonSignIdx]}）との相性</b>：${compatMsg}</div>
      <div style="margin-bottom:8px;">📌 <b>この日の過ごし方</b>：最も運気が高いのは<b>${best}</b>。ここに時間とエネルギーを優先的に使いましょう。一方、<b>${worst}</b>は低調気味なので、重要な判断は別の日に回すと吉です。</div>
+     <div style="margin-bottom:8px; padding:10px 12px; background:var(--cp-surface-soft); border:1px solid var(--cp-border); border-radius:0.625rem;">🌟 <b>星の動きからのアドバイス</b><div style="margin-top:6px;">${motionHtml}</div></div>
      <div>🎨 ラッキーカラー：<b>${luckyColor}</b>　🍀 アイテム：<b>${luckyItem}</b>　🔢 ナンバー：<b>${luckyNum}</b>　🧭 方角：<b>${luckyDir}</b>　⏰ 時間帯：<b>${luckyTime}</b></div>`;
 }
 
@@ -641,6 +723,7 @@ function renderWeek(start, sIdx) {
     const cells = CATEGORIES.map((c) => `<td>${dy.scores[c]}</td>`).join("");
     return `<tr${hl}><td>${dt.getMonth() + 1}/${dt.getDate()}（${WDAYS[dt.getDay()]}）</td>
       <td title="${dy.phase.name}">${dy.phase.emoji}</td>
+      <td style="font-size:0.82rem;">${SIGN_GLYPH[dy.moonSignIdx]} ${SIGNS[dy.moonSignIdx]}</td>
       <td><span class="stars" style="font-size:0.85rem;">${stars}</span></td>
       ${cells}<td style="font-size:0.82rem;">${comment}</td></tr>`;
   }).join("");
@@ -653,9 +736,21 @@ function renderWeek(start, sIdx) {
   let phaseNote = "";
   if (fullMoons.length) phaseNote = `🌕 ${fullMoons[0].date.getMonth() + 1}/${fullMoons[0].date.getDate()} 頃が満月。成果の確認や感謝の機会に。`;
   else if (newMoons.length) phaseNote = `🌑 ${newMoons[0].date.getMonth() + 1}/${newMoons[0].date.getDate()} 頃が新月。新しいことを始めるのに最適です。`;
+  const retroDays = days.filter((dy) => dy.retro.mercury).length;
+  const retroNote = retroDays === 7
+    ? "⏪ この週は水星が逆行中。連絡・交通・契約まわりの見直しを丁寧に。"
+    : retroDays > 0 ? "⏪ 週の途中で水星の逆行/順行が切り替わります。節目の日は確認作業を丁寧に。" : "";
+  const moonChanges = [];
+  for (let i = 1; i < days.length; i++) {
+    if (days[i].moonSignIdx !== days[i - 1].moonSignIdx) {
+      moonChanges.push(`${days[i].date.getMonth() + 1}/${days[i].date.getDate()}頃に月が${SIGNS[days[i].moonSignIdx]}へ`);
+    }
+  }
   document.getElementById("weekMessage").innerHTML =
     `<div style="margin-bottom:8px;">🏆 <b>今週のベストデー</b>：<b>${bdt.getMonth() + 1}/${bdt.getDate()}（${WDAYS[bdt.getDay()]}）</b>。特に<b>${bBest}</b>の運気が高い日です。大事な約束や勝負事はこの日に。</div>
-     ${phaseNote ? `<div>${phaseNote}</div>` : ""}`;
+     ${phaseNote ? `<div style="margin-bottom:8px;">${phaseNote}</div>` : ""}
+     ${moonChanges.length ? `<div style="margin-bottom:8px;">🌙 <b>月の移動</b>：${moonChanges.join("、")}。星座が変わるタイミングで気分や空気が切り替わります。</div>` : ""}
+     ${retroNote ? `<div>${retroNote}</div>` : ""}`;
 }
 
 document.getElementById("btn").addEventListener("click", () => {
